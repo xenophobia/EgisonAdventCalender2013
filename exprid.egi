@@ -1,0 +1,7 @@
+(define $exprID integer)
+
+(define $initialGen (lambda [] 0))
+
+(define $getID
+  (lambda [$gen]
+    (let {[$id (gen)]} [n (lambda [] (+ n 1))])))
