@@ -10,29 +10,30 @@
      <varE string>
      <opE op expr expr>
      <letE string (list string) expr expr>
+     <lamE string expr>
      <ifE expr expr expr>
-     <appE string (list expr)>
+     <appE expr expr>
      <fail>}))
-
-(define $contains
-  (pattern-function [$p] <join _ <cons p _>>))
 
 (define $childexpr
   (pattern-function [$p]
     (| <opE _ p _> <opE _ _ p>
        <letE _ _ p _> <letE _ _ _ p>
+       <lamE _ p>
        <ifE p _ _> <ifE _ p _> <ifE _ _ p>
-       <appE _ (contains p)>)))
+       <appE p _> <appE _ p>)))
 
 (define $subexpr
   (pattern-function [$p] (| (childexpr (subexpr p)) p)))
 
-(define $value (pattern-function [] (| <boolE _> <intE _>)))
-(define $leafs (pattern-function [] (| (value) <varE _>)))
+(define $leafs (pattern-function [] (| <boolE _> <intE _> <varE _>)))
 (define $leafexpr
   (pattern-function [$p] (subexpr (& p (leafs)))))
 
 #| eval |#
+
+(define $value (pattern-function [] (| <boolE _> <intE _> <lamE _ _>)))
+
 (define $op-eval
   (match-lambda expr
     {[<opE <eq> $v1 $v2> <BoolE (eq v1 v2)>]
@@ -51,6 +52,6 @@
         <IfE <OpE <Ge> <VarE "x"> <IntE 0>>
              <LetE "y" {}
                    <OpE <Plus> <VarE "x"> <IntE -1>>
-                   <AppE "fact" {<VarE "y">}>>
+                   <AppE <VarE "fact"> <VarE "y">>>
              <IntE 1>>
-        <AppE "fact" {<VarE "n">}>>)
+        <AppE <VarE "fact"> <VarE "n">>>)
