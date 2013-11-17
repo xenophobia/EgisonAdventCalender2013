@@ -1,41 +1,39 @@
-(load-file "exprid.egi")
-
 (define $op
   (algebraic-data-matcher
    {<eq> <lt> <le> <gt> <ge> <plus> <mult>}))
 
 (define $expr
   (algebraic-data-matcher
-    {<boolE exprID bool>
-     <intE exprID integer>
-     <varE exprID string>
-     <opE exprID op expr expr>
-     <letE exprID string (list string) expr expr>
-     <ifE exprID expr expr expr>
-     <appE exprID string (list expr)>}))
+    {<boolE bool>
+     <intE integer>
+     <varE string>
+     <opE op expr expr>
+     <letE string (list string) expr expr>
+     <ifE expr expr expr>
+     <appE string (list expr)>}))
 
 (define $contains
   (pattern-function [$p] <join _ <cons p _>>))
 
 (define $childexpr
   (pattern-function [$p]
-                    (| <opE _ _ p _> <opE _ _ _ p>
-                       <letE _ _ _ p _> <letE _ _ _ _ p>
-                       <ifE _ p _ _> <ifE _ _ p _> <ifE _ _ _ p>
-                       <appE _ _ (contains p)>)))
+                    (| <opE _ p _> <opE _ _ p>
+                       <letE _ _ p _> <letE _ _ _ p>
+                       <ifE p _ _> <ifE _ p _> <ifE _ _ p>
+                       <appE _ (contains p)>)))
 
 (define $subexpr
   (pattern-function [$p] (| (childexpr (subexpr p)) p)))
 
-(define $leafs (pattern-function [] (| <boolE _ _> <intE _ _> <varE _ _>)))
+(define $leafs (pattern-function [] (| <boolE _> <intE _> <varE _>)))
 (define $leafexpr
   (pattern-function [$p] (subexpr (& p (leafs)))))
 
 (define $factE
-  <LetE 0 "fact" {"x"}
-        <IfE 1 <OpE 2 <Ge> <VarE 3 "x"> <IntE 4 0>>
-             <LetE 5 "x" {}
-                   <OpE 6 <Plus> <VarE 7 "x"> <IntE 8 -1>>
-                   <AppE 9 "fact" {<VarE 10 "x">}>>
-             <IntE 11 1>>
-        <AppE 12 "fact" {<VarE 13 "n">}>>)
+  <LetE "fact" {"x"}
+        <IfE <OpE <Ge> <VarE "x"> <IntE 0>>
+             <LetE "x" {}
+                   <OpE <Plus> <VarE "x"> <IntE -1>>
+                   <AppE "fact" {<VarE "x">}>>
+             <IntE 1>>
+        <AppE "fact" {<VarE "n">}>>)
