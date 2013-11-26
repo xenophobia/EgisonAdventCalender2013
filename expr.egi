@@ -38,12 +38,12 @@
   (match-lambda expr
     {[<opE <eq> <boolE $v1> <boolE $v2>> <BoolE (eq? v1 v2)>]
      [<opE <eq> <intE $v1> <intE $v2>> <BoolE (eq? v1 v2)>]
-     [<opE <lt> <intE $i1> <intE $i2>> <BoolE (lt? $i1 $i2)>]
-     [<opE <le> <intE $i1> <intE $i2>> <BoolE (le? $i1 $i2)>]
-     [<opE <gt> <intE $i1> <intE $i2>> <BoolE (gt? $i1 $i2)>]
-     [<opE <ge> <intE $i1> <intE $i2>> <BoolE (ge? $i1 $i2)>]
-     [<opE <plus> <intE $i1> <intE $i2>> <IntE (+ $i1 $i2)>]
-     [<opE <mult> <intE $i1> <intE $i2>> <IntE (* $i1 $i2)>]
+     [<opE <lt> <intE $i1> <intE $i2>> <BoolE (lt? i1 i2)>]
+     [<opE <le> <intE $i1> <intE $i2>> <BoolE (lte? i1 i2)>]
+     [<opE <gt> <intE $i1> <intE $i2>> <BoolE (gt? i1 i2)>]
+     [<opE <ge> <intE $i1> <intE $i2>> <BoolE (gte? i1 i2)>]
+     [<opE <plus> <intE $i1> <intE $i2>> <IntE (+ i1 i2)>]
+     [<opE <mult> <intE $i1> <intE $i2>> <IntE (* i1 i2)>]
      [_ <Fail>]}))
 
 (define $subst
@@ -57,14 +57,17 @@
                  [<lamE ,x $e> <LamE x e>]
                  [<lamE $y $e> <LamE y (go e)>]
                  [<ifE $e1 $e2 $e3> <IfE (go e1) (go e2) (go e3)>]
-                 [<appE $e1 $e2> <AppE (go e1) (go e2)>]})]} go)))
+                 [<appE $e1 $e2> <AppE (go e1) (go e2)>]
+                 [$v v]})]} go)))
 
 (define $step-cbv
   (match-lambda expr
     {[(& <opE _ (value) (value)> $op-redex) (op-eval op-redex)]
      [<opE $op (& ^(value) $e1) $e2> <OpE op (step-cbv e1) e2>]
      [<opE $op $e1 (& ^(value) $e2)> <OpE op e1 (step-cbv e2)>]
-     [<letE $x (& (value) $v) $e> ((subst x v) e2)]
+     [<letE $x (& (value) $v) $e>
+      (let {[$vr ((subst x <LetE x v <VarE x>>) v)]}
+        ((subst x vr) e))]
      [<letE $x $e1 $e2> <LetE x (step-cbv e1) e2>]
      [<ifE <boolE ,#t> $e _> e]
      [<ifE <boolE ,#f> _ $e> e]
@@ -74,12 +77,17 @@
      [<appE (& ^(value) $e1) $e2> <AppE (step-cbv e1) e2>]
      [_ <Fail>]}))
 
+(define $eval-cbv
+  (match-lambda expr
+    {[(& (value) $v) v]
+     [$e (eval-cbv (step-cbv e))]}))
+
 #| instances |#
 
 (define $factE
   <LetE "fact"
         <LamE "x"
-              <IfE <OpE <Ge> <VarE "x"> <IntE 0>>
+              <IfE <OpE <Gt> <VarE "x"> <IntE 0>>
                    <LetE "y"
                          <OpE <Plus> <VarE "x"> <IntE -1>>
                          <OpE <Mult> <VarE "x"> <AppE <VarE "fact"> <VarE "y">>>>
