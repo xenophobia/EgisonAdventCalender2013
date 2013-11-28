@@ -1,24 +1,38 @@
+(define $operator (algebraic-data-matcher {<plus> <mult>}))
 (define $term
   (algebraic-data-matcher
     {<var string>
+     <int integer>
+     <op operator term term>
      <lam string term>
      <app term term>}))
 
 (define $value
-  (pattern-function [$p] (& (| <var _> <lam _ _>) p)))
+  (pattern-function [$p] (& (| <var _> <int _> <lam _ _>) p)))
 
 (define $subst
   (lambda [$x $t]
     (letrec {[$go
               (match-lambda term
                 {[<var ,x> t]
+                 [<op $ope $t1 $t2> <Op ope (go t1) (go t2)>]
                  [<lam (& $y ^,x) $t1> <Lam y (go t1)>]
                  [<app $t1 $t2> <App (go t1) (go t2)>]
                  [$t t]})]} go)))
 
+(define $op-reduce
+  (match-lambda operator
+    {[<plus> (match-lambda [term term]
+               {[[<int $i1> <int $i2>] <Int (+ i1 i2)>]})]
+     [<mult> (match-lambda [term term]
+               {[[<int $i1> <int $i2>] <Int (* i1 i2)>]})]}))
+
 (define $beta-reduce-cbv-naive
   (match-lambda term
     {[<app <lam $x $t> (value $v)> ((subst x v) t)]
+     [<op $ope (value $v1) (value $v2)> ((op-reduce ope) v1 v2)]
+     [<op $ope (value $v) $t> <Op ope v (beta-reduce-cbv-naive t)>]
+     [<op $ope $t1 $t2> <Op ope (beta-reduce-cbv-naive t1) t2>]
      [<app (value $v) $t> <App v (beta-reduce-cbv-naive t)>]
      [<app $t1 $t2> <App (beta-reduce-cbv-naive t1) t2>]
      [$v v]}))
@@ -26,6 +40,10 @@
 (define $beta-reduce-cbn-naive
   (match-lambda term
     {[<app <lam $x $t1> $t2> ((subst x t2) t1)]
+     [<op $ope (value $v1) (value $v2)> ((op-reduce ope) v1 v2)]
+     [<op $ope (value $v) $t> <Op ope v (beta-reduce-cbn-naive t)>]
+     [<op $ope $t1 $t2> <Op ope (beta-reduce-cbn-naive t1) t2>]
+     [<app (value $v) $t> <App v (beta-reduce-cbn-naive t)>]
      [<app $t1 $t2> <App (beta-reduce-cbn-naive t1) t2>]
      [$v v]}))
 
@@ -40,6 +58,9 @@
 (define $beta-reduce-normal-naive
   (match-lambda term
     {[<app <lam $x $t1> $t2> ((subst x t2) t1)]
+     [<op $ope (value $v1) (value $v2)> ((op-reduce ope) v1 v2)]
+     [<op $ope (value $v) $t> <Op ope v (beta-reduce-normal-naive t)>]
+     [<op $ope $t1 $t2> <Op ope (beta-reduce-normal-naive t1) t2>]
      [<app (& (sub (redex)) $t1) $t2> <App (beta-reduce-normal-naive t1) t2>]
      [<app $t1 (& (sub (redex)) $t2)> <App t1 (beta-reduce-normal-naive t2)>]
      [<lam $x (& (sub (redex)) $t)> <Lam x (beta-reduce-normal-naive t)>]
@@ -60,6 +81,9 @@
                            <Var "x">>>>>>)
 
 (define $c0 <Lam "f" <Lam "x" <Var "x">>>)
+(define $church
+  (lambda [$n]
+    (if (gt? n 0)
+        <App succ-term (church (- n 1))>
+        c0)))
 
-(define $omega <App <Lam "x" <App <Var "x"> <Var "x">>>
-                    <Lam "x" <App <Var "x"> <Var "x">>>>)
